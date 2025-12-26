@@ -61,6 +61,15 @@ int hf_tok_list_special_tokens(HfTokenizerHandle* h,
 
 void hf_tok_free_string_array(char** arr, size_t len);
 
+// 从模型目录读取 tokenizer_config.json 的 chat_template（或 chat_template.jinja）
+// messages_json: JSON array: [{"role":"user","content":"..."}, ...]
+// add_generation_prompt: 0/1
+// out_prompt: malloc-like string，需要用 hf_string_free 释放
+int hf_chat_apply_template_from_dir(const char* model_dir,
+                                   const char* messages_json,
+                                   int add_generation_prompt,
+                                   char** out_prompt);
+
 #ifdef __cplusplus
 }
 #endif
