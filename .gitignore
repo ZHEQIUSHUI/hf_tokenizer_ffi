@@ -1,0 +1,69 @@
+# =========================
+# OS / Editors
+# =========================
+.DS_Store
+Thumbs.db
+
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# =========================
+# Rust / Cargo
+# =========================
+target/
+**/target/
+
+# Cargo build artifacts
+*.rlib
+*.rmeta
+*.d
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Rust toolchain local files
+Cargo.lock
+# 如果这是库仓库而不是二进制仓库，一般不提交 Cargo.lock
+# 如果你希望提交 Cargo.lock（用于可重复构建），把上一行删掉或注释掉
+
+# =========================
+# CMake / C++ build
+# =========================
+build/
+build-*/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+*.ninja
+.ninja_*
+*.obj
+*.pdb
+
+# =========================
+# Packaging / SDK outputs
+# =========================
+dist/
+out/
+release/
+*.tar.gz
+*.zip
+*.sha256
+
+# =========================
+# Downloaded ARM toolchain (your CI)
+# =========================
+gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu/
+gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu.tar.xz
+
+# If you later download other toolchain versions, ignore them too:
+gcc-arm-*-x86_64-aarch64-none-linux-gnu/
+gcc-arm-*-x86_64-aarch64-none-linux-gnu.tar.*
