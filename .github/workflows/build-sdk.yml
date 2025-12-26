@@ -6,6 +6,10 @@ on:
     tags: [ "v*" ]
   pull_request:
 
+permissions:
+  contents: write   # 允许创建 Release / 上传 assets
+  actions: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # cache cargo（两个架构共用，但 key 里带 arch 避免互相污染）
+      # cache cargo（key 带 arch，避免互相污染）
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -27,7 +31,7 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ matrix.arch }}-${{ hashFiles('**/Cargo.lock') }}
 
-      # 只对 aarch64 缓存 ARM toolchain（放在 build_aarch64 目录里）
+      # 只对 aarch64 缓存 ARM toolchain（你的脚本会用 build_aarch64）
       - name: Cache ARM toolchain
         if: matrix.arch == 'aarch64'
         uses: actions/cache@v4
@@ -56,6 +60,7 @@ jobs:
         run: |
           bash scripts/build_sdk_aarch64.sh
 
+      # 上传 artifacts（方便 PR/非 tag 场景下载）
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -64,22 +69,30 @@ jobs:
             dist/hf-tokenizer-sdk-${{ matrix.arch }}.tar.gz
             dist/hf-tokenizer-sdk-${{ matrix.arch }}.tar.gz.sha256
 
-  # 可选：打 tag v* 时发 Release，把两个架构的包都挂上去
   release:
+    # 只有打 tag v* 的 push 才会走 Release
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [ build ]
     runs-on: ubuntu-latest
+
     steps:
-      - name: Download artifacts
+      - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          path: dist
+          path: dist_artifacts
 
-      - name: Create GitHub Release
+      # 展开看一下路径，避免文件名不匹配
+      - name: List artifacts
+        run: |
+          ls -R dist_artifacts
+
+      - name: Create GitHub Release and upload assets
         uses: softprops/action-gh-release@v2
         with:
+          # 默认用 tag 名作为 Release 名
+          generate_release_notes: true
           files: |
-            dist/hf-tokenizer-sdk-x86_64/hf-tokenizer-sdk-x86_64.tar.gz
-            dist/hf-tokenizer-sdk-x86_64/hf-tokenizer-sdk-x86_64.tar.gz.sha256
-            dist/hf-tokenizer-sdk-aarch64/hf-tokenizer-sdk-aarch64.tar.gz
-            dist/hf-tokenizer-sdk-aarch64/hf-tokenizer-sdk-aarch64.tar.gz.sha256
+            dist_artifacts/hf-tokenizer-sdk-x86_64/hf-tokenizer-sdk-x86_64.tar.gz
+            dist_artifacts/hf-tokenizer-sdk-x86_64/hf-tokenizer-sdk-x86_64.tar.gz.sha256
+            dist_artifacts/hf-tokenizer-sdk-aarch64/hf-tokenizer-sdk-aarch64.tar.gz
+            dist_artifacts/hf-tokenizer-sdk-aarch64/hf-tokenizer-sdk-aarch64.tar.gz.sha256
