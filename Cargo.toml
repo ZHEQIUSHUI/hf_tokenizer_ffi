@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [lib]
-crate-type = ["staticlib"]   # 也可以换成 ["cdylib"] 产出 .so
+crate-type = ["cdylib", "staticlib"]   # 也可以换成 ["cdylib"] 产出 .so
 
 [dependencies]
 tokenizers = "0.22"

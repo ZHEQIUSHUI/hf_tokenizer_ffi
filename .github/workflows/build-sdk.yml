@@ -14,12 +14,8 @@ env:
   FIXED_TAG: v0.1.0
 
 jobs:
-  build:
+  build-linux:
     runs-on: ubuntu-latest
-
-    # 避免 fixed_release 强推 v0.1.0 tag 后触发 tag push 又跑一次构建（循环）
-    if: ${{ !(github.ref == 'refs/tags/v0.1.0' && github.actor == 'github-actions[bot]') }}
-
     strategy:
       fail-fast: false
       matrix:
@@ -73,12 +69,70 @@ jobs:
             dist/hf-tokenizer-sdk-${{ matrix.arch }}.tar.gz
             dist/hf-tokenizer-sdk-${{ matrix.arch }}.tar.gz.sha256
 
-  # 对“真正版本 tag”发布 release（排除 v0.1.0，因为它由 fixed_release 覆盖）
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ✅ 用官方/常用 action 管 Rust，不在脚本里装
+      - name: Setup Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+
+      - name: Setup MSYS2 (mingw64)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-toolchain
+            git
+            zip
+            unzip
+
+      - name: Build SDK (windows x86_64, mingw64)
+        shell: msys2 {0}
+        env:
+          TARGET: x86_64-pc-windows-gnu
+          SDK_NAME: hf-tokenizer-sdk-windows-x86_64
+          OUT_DIR: dist
+        run: |
+          set -euo pipefail
+
+          # Rust tools
+          export PATH="/c/Users/runneradmin/.cargo/bin:$PATH"
+
+          # 强制用 MSYS2 MinGW64 的 bin（非常关键）
+          export PATH="/mingw64/bin:$PATH"
+
+          # 让 cc-rs 用到存在的工具名（MINGW64 里通常就是 ar/ranlib/gcc）
+          export CC=gcc
+          export CXX=g++
+          export AR=ar
+          export RANLIB=ranlib
+
+          which gcc
+          which ar
+          which ranlib
+          gcc --version
+          ar --version
+
+          bash scripts/build_sdk_windows_mingw64.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hf-tokenizer-sdk-windows-x86_64
+          path: |
+            dist/hf-tokenizer-sdk-windows-x86_64.zip
+            dist/hf-tokenizer-sdk-windows-x86_64.zip.sha256
+
+  # 版本 tag 发布（排除固定 tag v0.1.0）
   release:
     if: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref != 'refs/tags/v0.1.0' }}
-    needs: [build]
+    needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
-
     steps:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -98,11 +152,13 @@ jobs:
             dist_artifacts/hf-tokenizer-sdk-x86_64/hf-tokenizer-sdk-x86_64.tar.gz.sha256
             dist_artifacts/hf-tokenizer-sdk-aarch64/hf-tokenizer-sdk-aarch64.tar.gz
             dist_artifacts/hf-tokenizer-sdk-aarch64/hf-tokenizer-sdk-aarch64.tar.gz.sha256
+            dist_artifacts/hf-tokenizer-sdk-windows-x86_64/hf-tokenizer-sdk-windows-x86_64.zip
+            dist_artifacts/hf-tokenizer-sdk-windows-x86_64/hf-tokenizer-sdk-windows-x86_64.zip.sha256
 
-  # main 每次成功构建后：覆盖固定 tag v0.1.0 的 release assets（可选移动 tag）
+  # main 每次成功构建后：覆盖固定 tag v0.1.0 的 release assets（不移动 tag）
   fixed_release:
     if: ${{ github.ref == 'refs/heads/main' }}
-    needs: [build]
+    needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
 
     steps:
@@ -144,4 +200,6 @@ jobs:
             dist_artifacts/hf-tokenizer-sdk-x86_64/hf-tokenizer-sdk-x86_64.tar.gz.sha256 \
             dist_artifacts/hf-tokenizer-sdk-aarch64/hf-tokenizer-sdk-aarch64.tar.gz \
             dist_artifacts/hf-tokenizer-sdk-aarch64/hf-tokenizer-sdk-aarch64.tar.gz.sha256 \
+            dist_artifacts/hf-tokenizer-sdk-windows-x86_64/hf-tokenizer-sdk-windows-x86_64.zip \
+            dist_artifacts/hf-tokenizer-sdk-windows-x86_64/hf-tokenizer-sdk-windows-x86_64.zip.sha256 \
             --clobber
